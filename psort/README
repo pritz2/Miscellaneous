@@ -1,5 +1,5 @@
-A C++ implementation of quicksort (and, commented out, mergesort) algorithms using Openmp pragmas to run in parallel as part of an honors project competition to get the fastest running sort algorithm. Results are compared to the speed of std::sort as a baseline.
+A C++ implementation of quicksort (and, commented out, mergesort) algorithms using OpenMP pragmas to run in parallel as part of an honors project competition to get the fastest running sort algorithm. Results are compared to the speed of std::sort as a baseline.
 
-To achieve speed, sort will only run is the number of elements is greater than a certain threshold, and merging takes place either on the stack (faster) or on the heap (safer) based on a different threshold.
+To achieve speed, sort will only run in parallel if the number of elements is greater than a certain threshold, due to the overhead of making it parallel. In the mergesort implementation, merging takes place either on the stack (faster) or on the heap (safer) based on a different threshold.
 
-OpenMP comes with the g++ compiler, but be wary that if you’re using a Mac, g++ is just an alias for clang, which does not, so you’ll need to manually install g++ yourself.
+The g++ compiler comes with OpenMP, but be wary that if you’re using a Mac, g++ is just an alias for clang, which does not, so you’ll need to manually install g++ yourself.
