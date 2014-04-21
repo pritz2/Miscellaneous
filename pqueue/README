@@ -1,0 +1,1 @@
+This is a quick and dirty C++ implementation of a priority queue using a Fibonacci Heap data structure. The decrease key, remove node, and copy constructor were unnecessary for the project and thus not implemented, but I'll probably do that later because it annoys me that they're not done.
