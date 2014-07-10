@@ -1,25 +1,69 @@
 #include "RPS.h"
+#define INIT_HISTORY_SIZE 5
+
+// Record 1:  231 Wins  |  271 Ties  |  498 Loses  |  1000 Games
 
 const char* Moves[3] = {"ROCK","PAPER","SCISSORS"};
+char** historyMem;
+RPS* currGame;
 
-/* RPS game initializer: all stats originally set to zero
+void abort_program(int sig) {
+    sig++;
+    currGame->printStats();
+    free(*historyMem);
+    exit(0);
+}
+
+/* 
+ * RPS game initializer: all stats originally set to zero
  **/
 RPS::RPS() : playerScore(0), computerScore(0), totalGames(0)
 {
+    printf("/*************************************/\n");
+    printf("/*                                   */\n");
+    printf("/* Welcome to ROCK, PAPER, SCISSORS! */\n");
+    printf("/*                                   */\n");
+    printf("/* When prompted, enter rock, paper, */\n");
+    printf("/* or scissors (or just enter r, p,  */\n");
+    printf("/* or s). The computer is very       */\n");
+    printf("/* intelligent and learns from you,  */\n");
+    printf("/* so watch out!                     */\n");
+    printf("/* Hit CTRL+C at any time to end the */\n");
+    printf("/* game.                             */\n");
+    printf("/*                                   */\n");
+    printf("/*************************************/\n");
+    
+    MoveHistory = (char*)malloc(INIT_HISTORY_SIZE*sizeof(char));
+    HistorySize = INIT_HISTORY_SIZE;
+    MoveHistory[0] = '\0';
+    
+    historyMem = &MoveHistory;
+    currGame = this;
+    
+    numMoves = 0;
+    mostRecentMoves[0] = ' ';
+    mostRecentMoves[1] = ' ';
+    mostRecentMoves[2] = ' ';
+    mostRecentMoves[3] = ' ';
+    mostRecentMoves[4] = '\0';
+    
     player = Player();
     computer = Computer();
 }
 
-/* Gets player move, calculates computer move,
+/* 
+ * Gets player move, calculates computer move,
  * and determines winner (or tie) and updates statistics
  **/
-void RPS::play(double winPercent)
+void RPS::play()
 {
-    printf("Rock, Paper, Scissors!\n");
+    // Signal Handler
+    signal(SIGINT, abort_program);
     
     // Get moves
-    Move playerMove = player.getMove();
-    Move computerMove = computer.getMove(playerMove, winPercent);
+    Move computerMove = computer.processMove(mostRecentMoves,&MoveHistory[0],numMoves);
+    Move playerMove = player.processMove(mostRecentMoves,MoveHistory,numMoves,HistorySize);
+    
     printf("You played %s\n",Moves[playerMove]);
     printf("Computer played %s\n\n",Moves[computerMove]);
     
@@ -39,10 +83,11 @@ void RPS::play(double winPercent)
             break;
     }
     totalGames++;
+    printf("%d Wins  |  %d Ties  |  %d Loses  |  %d Games",playerScore,totalGames-playerScore-computerScore,computerScore,totalGames);
     
     // Play again or quit
     if(playAgain())
-        play(winPercent);
+        play();
     else
         printStats();
 }
@@ -52,23 +97,47 @@ RPS::Player::Player()
     // empty
 }
 
-/* Prompts the used for rock, paper, or scissors
+/* 
+ * Gets the player's move and update the history
  **/
-RPS::Move RPS::Player::getMove()
+RPS::Move RPS::Player::processMove(char (&recent)[5], char* (&history), int &numMoves, size_t &size)
 {
-    char ret[10];
-    printf("\nRock, Paper, or Scissors? ");
-    std::cin >> ret;
-    switch(ret[0]){
-        case 'R':
-        case 'r': return ROCK;
-        case 'S':
-        case 's': return SCISSORS;
-        case 'P':
-        case 'p': return PAPER;
+    Move ret = getMove();
+
+    recent[0] = recent[1];
+    recent[1] = recent[2];
+    recent[2] = recent[3];
+    recent[3] = Moves[ret][0];
+    history[numMoves++] = Moves[ret][0];
+    if(numMoves >= size) {
+        size = size*2;
+        history = (char*)realloc(history,size);
     }
-    // Invalid input, try again
-    return getMove();
+    history[numMoves] = '\0';
+    // TODO: increase history size as necessary
+    return ret;
+}
+
+/* 
+ * Prompt the player for a move
+ **/
+RPS::Move RPS::Player::getMove() {
+    char input[10];
+    printf("\nRock, Paper, or Scissors? ");
+    std::cin >> input;
+    switch(input[0]){
+        case 'R':
+        case 'r':
+            return ROCK;
+        case 'S':
+        case 's':
+            return SCISSORS;
+        case 'P':
+        case 'p':
+            return PAPER;
+        default:
+            return getMove();
+    }
 }
 
 RPS::Computer::Computer()
@@ -76,25 +145,168 @@ RPS::Computer::Computer()
     // empty
 }
 
-/* Gets the computer's move, given a percentage of the
- * time the player should win. The percentage of the time
- * the player should lose is evenly split between ties
- * and losses
+/* 
+ * Gets the computer's move, based on the player's
+ * move history
  **/
-RPS::Move RPS::Computer::getMove(Move playerMove, double winPercent)
+RPS::Move RPS::Computer::processMove(const char (&recent)[5], char* history, const int &numMoves)
 {
-    winPercent = winPercent*100;
-    srand(time(NULL));
-    double win = rand()%100;
-    double tiePercent = winPercent + (100-winPercent)/2.0;
-    if(win < winPercent)
-        return (Move)((playerMove+2)%3);
-    else if (win < tiePercent)
-        return playerMove;
-    return (Move)((playerMove+1)%3);
+    if(numMoves == 0)
+        return decideMove(0,0,0);
+    
+    int numR  =0;
+    int numP  =0;
+    int numS  =0;
+    char* start= history;
+    
+    // Search history for string of 4 previous moves
+    while(*history != '\0') {
+        if((*history     == recent[0]) &&
+           (*(history+1) == recent[1]) &&
+            (*(history+2) == recent[2]) &&
+            (*(history+3) == recent[3]) ) {
+            switch(*(history+4)) {
+                case 'R':
+                    numR++;
+                    break;
+                case 'P':
+                    numP++;
+                    break;
+                case 'S':
+                    numS++;
+                    break;
+            }
+        }
+        history++;
+    }
+    
+    // Search history for string of 3 previous moves
+    if((numR || numP || numS) == 0) {
+        history = start;
+        while(*history != '\0') {
+            if((*history     == recent[1]) &&
+               (*(history+1) == recent[2]) &&
+               (*(history+2) == recent[3]) ) {
+                switch(*(history+3)) {
+                    case 'R':
+                        numR++;
+                        break;
+                    case 'P':
+                        numP++;
+                        break;
+                    case 'S':
+                        numS++;
+                        break;
+                }
+            }
+            history++;
+        }
+    }
+    
+    // Search history for string of 2 previous moves
+    if((numR || numP || numS) == 0) {
+        history = start;
+        while(*history != '\0') {
+            if((*history     == recent[2]) &&
+               (*(history+1) == recent[3]) ) {
+                switch(*(history+2)) {
+                    case 'R':
+                        numR++;
+                        break;
+                    case 'P':
+                        numP++;
+                        break;
+                    case 'S':
+                        numS++;
+                        break;
+                }
+            }
+            history++;
+        }
+    }
+    
+    // Search history for string of previous move
+    if((numR || numP || numS) == 0) {
+        history = start;
+        while(*history != '\0') {
+            if(*history==recent[3]) {
+                switch(*(history+1)) {
+                    case 'R':
+                        numR++;
+                        break;
+                    case 'P':
+                        numP++;
+                        break;
+                    case 'S':
+                        numS++;
+                        break;
+                }
+            }
+            history++;
+        }
+    }
+    Move ret = decideMove(numR,numS,numP);
+    return ret;
+}
+    
+    
+RPS::Move RPS::Computer::decideMove(int numR, int numS, int numP){
+    double chance;
+    if(numR > numP){
+        if(numR > numS)
+            return PAPER;
+        else if(numR < numS)
+            return ROCK;
+        else {
+            srand(time(NULL));
+            chance = rand()%100;
+            if(chance>50)
+                return PAPER;
+            else
+                return ROCK;
+        }
+    }
+    else if(numP > numR) {
+        if(numP > numS)
+            return SCISSORS;
+        else if(numP < numS)
+            return ROCK;
+        else {
+            srand(time(NULL));
+            chance = rand()%100;
+            if(chance>50)
+                return SCISSORS;
+            else
+                return ROCK;
+        }
+    }
+    else {
+        if(numR < numS) {
+            return ROCK;
+        }
+        else if(numR > numS) {
+            srand(time(NULL));
+            chance = rand()%100;
+            if(chance>50)
+                return PAPER;
+            else
+                return SCISSORS;
+        }
+        else {
+            srand(time(NULL));
+            chance = rand()%100;
+            if(chance>66)
+                return ROCK;
+            else if(chance > 33)
+                return SCISSORS;
+            else
+                return ROCK;
+        }
+    }
 }
 
-/* Move comparer:
+/* 
+ * Move comparer:
  * returns 1 for win, 0 for tie, -1 for loss
  **/
 int RPS::compareMove(Move move1, Move move2)
@@ -112,20 +324,25 @@ int RPS::compareMove(Move move1, Move move2)
     return 0;
 }
 
-/* Simple play again prompt
+/* 
+ * Simple play again prompt
  **/
-bool RPS::playAgain(){
+bool RPS::playAgain() {
+    /*
     printf("Play again? ");
     char answer[10];
     std::cin >> answer;
     if(answer[0] == 'Y' || answer[0] == 'y')
         return true;
     return false;
+    */
+    return true;
 }
 
-/* Prints game end statistics
+/* 
+ * Prints game end statistics
  **/
 void RPS::printStats(){
     double winPercent = (double)playerScore/(double)totalGames * 100;
-    printf("\nYou played %d games, and won %d of them, for a win percentage of %.2f%% \n\n",totalGames,playerScore,winPercent);
+    printf("\n\n%d Wins  |  %d Ties  |  %d Loses  |  %d Games\nYou had a win percentage of %.2f%% \n\n",playerScore,totalGames-playerScore-computerScore,computerScore,totalGames,winPercent);
 }

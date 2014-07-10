@@ -1,1 +1,1 @@
-Added an old rock-paper-scissors project I made during an interview a couple months ago to display good object-oriented practices. Probably will add additional functionality, I dunno.
+An old rock-paper-scissors project I made during an interview a couple months ago. Uses basic machine learning principles to predict your next choice based on move history. After 5 people played 1,000 games each, the computer averaged a 49% win rate, 28% ties rate, and 23% loss rate against its opponents.

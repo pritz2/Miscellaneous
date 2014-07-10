@@ -1,3 +1,16 @@
+/**
+ * @file RPS.h
+ * Artificial Intelligence rock-paper-scissors program
+ *
+ * @author Lucas Pritz
+ * @date Summer 2014
+ *
+ * Revision history:
+ * April 2014    Created basic RPS program.
+ * July 2014     Added AI aspect, when computer guess player's next choice
+ *                 based off player's move history.
+ */
+
 #ifndef RPS_H
 #define RPS_H
 
@@ -5,66 +18,125 @@
 #include <algorithm>
 #include <cstdlib>
 
+/**
+ * RPS class: encapsulates the game.
+ */
 class RPS
 {
 public:
     
-    // RPS constructor
+    /**
+     * Constructs the environment.
+     */
     RPS();
     
-    // Start the game
-    void play(double winPercent);
+    /**
+     * Plays the game, continually deciding the computer's move
+     * and then asking the player for their move until a SIGINT
+     * is sent, signaling the end of the game.
+     */
+    void play();
+    
+    /**
+     * Display statistics upon game end
+     */
+    void printStats();
     
 private:
     
     enum Move{ ROCK, PAPER, SCISSORS };
     
-    /* Player class, complete with
-     * constructor and getMove()
+    /**
+     * Player class.
      **/
     class Player{
     public:
-        // User constructor
+        /**
+         * Player constructor
+         */
         Player();
         
-        // getMove
-        Move getMove();
+        /**
+         * Gets the player's move, and updates the history appropriately.
+         *
+         * @param Player's most recent move history
+         * @param Player's overall move history
+         * @param Number of moves thus far
+         * @param Maximum size of the move history dynamic array
+         * @return The move selected by the player
+         */
+        Move processMove(char (&recent)[5], char* (&history), int &numMoves, size_t &size);
         
     private:
-        // empty
+        /**
+         * Prompts the player for their moves
+         *
+         * @return The player's selected move
+         */
+        Move getMove();
     };
     
-    /* Computer class, complete with
-     * constructor and getMove()
+    /**
+     * Computer class.
      **/
     class Computer{
     public:
-        // Computer constructor
+        /**
+         * Computer constructor
+         */
         Computer();
         
-        // gets a move from the computer,
-        // based off the player's move, to keep
-        // win rate at 40% (and tie/ loss at 30%)
-        Move getMove(Move playerMove, double winPercent);
+        /**
+         * Gets the computer's move by predicting the player's 
+         * move based off a player's move history
+         *
+         * @param Player's most recent move history
+         * @param Player's overall move history
+         * @param Number of moves thus far
+         * @return The move selected by the computer
+         */
+        Move processMove(const char (&recent)[5], char* history, const int &numMoves);
+        
     private:
-        // empty
+        /**
+         * Decides a move for the computer based off
+         * player's tendency to play certain moves
+         * in the current situation
+         *
+         * @param number of times rock was played
+         * @param number of times scissors was played
+         * @param number of times paper was played
+         * @return The move selected by the computer
+         */
+        Move decideMove(int numR, int numS, int numP);
     };
     
-    /* Returns a 1 if moves1 wins,
-     * -1 is move1 loses, 0 if tie
+    /**
+     * Compares 2 moves to determine the victor
+     *
+     * @param the first move to be compared
+     * @param the second move to be compared
+     * @return 1  |  move1 wins
+     *         0  |  It's a tie
+     *        -1  |  move2 wins
      **/
     int compareMove(Move move1, Move move2);
     
+    /**
+     * Simple playAgain prompt
+     */
     bool playAgain();
     
-    void printStats();
-    
-    Computer computer;
-    Player player;
-    int playerScore;
-    int computerScore;
-    int totalGames;
-    
+    Computer computer;     // Computer instance
+    Player player;         // Player instance
+    int playerScore;       // player score
+    int computerScore;     // computer score
+    int totalGames;        // total games played
+    char* MoveHistory;     // Player's move history
+    size_t HistorySize;    // Maximum size of dynamic move history
+                           // until realloc() is needed
+    int numMoves;          // number of moves played
+    char mostRecentMoves[5]; // most recent moves array
 };
 
 #endif

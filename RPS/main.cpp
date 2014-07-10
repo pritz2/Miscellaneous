@@ -4,8 +4,8 @@ int main()
 {
     
     RPS game = RPS();
-    double winPercent = 0.4;
-    game.play(winPercent);
+    game.play();
+    printf("Control returns here");
     
     return 0;
     
