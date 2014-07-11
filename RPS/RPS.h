@@ -44,7 +44,7 @@ public:
     
 private:
     
-    enum Move{ ROCK, PAPER, SCISSORS };
+    enum Move{ ROCK, PAPER, SCISSORS, QUIT };
     
     /**
      * Player class.
@@ -57,6 +57,11 @@ private:
         Player();
         
         /**
+         * Player destructor
+         */
+        ~Player();
+        
+        /**
          * Gets the player's move, and updates the history appropriately.
          *
          * @param Player's most recent move history
@@ -65,7 +70,9 @@ private:
          * @param Maximum size of the move history dynamic array
          * @return The move selected by the player
          */
-        Move processMove(char (&recent)[5], char* (&history), int &numMoves, size_t &size);
+        Move processMove(int &numMoves);
+        
+        char* getHistory();
         
     private:
         /**
@@ -74,6 +81,10 @@ private:
          * @return The player's selected move
          */
         Move getMove();
+        
+        char* MoveHistory;     // Player's move history
+        size_t HistoryMaxSize; // Maximum size of dynamic move history
+        // until realloc() is needed
     };
     
     /**
@@ -95,7 +106,7 @@ private:
          * @param Number of moves thus far
          * @return The move selected by the computer
          */
-        Move processMove(const char (&recent)[5], char* history, const int &numMoves);
+        Move processMove(char* history, const int &numMoves);
         
     private:
         /**
@@ -132,11 +143,8 @@ private:
     int playerScore;       // player score
     int computerScore;     // computer score
     int totalGames;        // total games played
-    char* MoveHistory;     // Player's move history
-    size_t HistorySize;    // Maximum size of dynamic move history
-                           // until realloc() is needed
     int numMoves;          // number of moves played
-    char mostRecentMoves[5]; // most recent moves array
+    
 };
 
 #endif

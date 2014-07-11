@@ -1,24 +1,25 @@
 #include "RPS.h"
-#define INIT_HISTORY_SIZE 5
+#define INIT_HISTORY_MAX_SIZE 5
 
-// Record 1:  231 Wins  |  271 Ties  |  498 Loses  |  1000 Games
+const char* Moves[4] = {"ROCK","PAPER","SCISSORS","QUIT"};
+sig_atomic_t sigflag = 0;
 
-const char* Moves[3] = {"ROCK","PAPER","SCISSORS"};
-char** historyMem;
-RPS* currGame;
-
+/**
+ * Signal Handler
+ */
 void abort_program(int sig) {
     sig++;
-    currGame->printStats();
-    free(*historyMem);
-    exit(0);
+    sigflag = 1;
+    fclose(stdin);
+    return;
 }
 
-/* 
+/**
  * RPS game initializer: all stats originally set to zero
- **/
-RPS::RPS() : playerScore(0), computerScore(0), totalGames(0)
+ */
+RPS::RPS() : playerScore(0), computerScore(0), totalGames(0), numMoves(0)
 {
+    printf("\n");
     printf("/*************************************/\n");
     printf("/*                                   */\n");
     printf("/* Welcome to ROCK, PAPER, SCISSORS! */\n");
@@ -28,103 +29,94 @@ RPS::RPS() : playerScore(0), computerScore(0), totalGames(0)
     printf("/* or s). The computer is very       */\n");
     printf("/* intelligent and learns from you,  */\n");
     printf("/* so watch out!                     */\n");
-    printf("/* Hit CTRL+C at any time to end the */\n");
-    printf("/* game.                             */\n");
-    printf("/*                                   */\n");
+    printf("/* Enter quit for your move at any   */\n");
+    printf("/* time to end the game              */\n");
     printf("/*************************************/\n");
-    
-    MoveHistory = (char*)malloc(INIT_HISTORY_SIZE*sizeof(char));
-    HistorySize = INIT_HISTORY_SIZE;
-    MoveHistory[0] = '\0';
-    
-    historyMem = &MoveHistory;
-    currGame = this;
-    
-    numMoves = 0;
-    mostRecentMoves[0] = ' ';
-    mostRecentMoves[1] = ' ';
-    mostRecentMoves[2] = ' ';
-    mostRecentMoves[3] = ' ';
-    mostRecentMoves[4] = '\0';
-    
-    player = Player();
-    computer = Computer();
 }
 
-/* 
+/**
  * Gets player move, calculates computer move,
  * and determines winner (or tie) and updates statistics
- **/
+ */
 void RPS::play()
 {
     // Signal Handler
     signal(SIGINT, abort_program);
     
-    // Get moves
-    Move computerMove = computer.processMove(mostRecentMoves,&MoveHistory[0],numMoves);
-    Move playerMove = player.processMove(mostRecentMoves,MoveHistory,numMoves,HistorySize);
+    bool keepPlaying = true;
+    srand(time(NULL));
     
-    printf("You played %s\n",Moves[playerMove]);
-    printf("Computer played %s\n\n",Moves[computerMove]);
+    while(keepPlaying) {
+        // Get moves
+        Move computerMove = computer.processMove(player.getHistory(),numMoves);
+        Move playerMove = player.processMove(numMoves);
+        
+        if(playerMove == QUIT)
+            break;
     
-    // See who wins
-    int compare = compareMove(playerMove, computerMove);
-    switch (compare) {
-        case 0: // Tie
-            printf("Tie!\n\n");
-            break;
-        case 1: // User wins
-           printf("%s beats %s. You won!\n\n",Moves[playerMove],Moves[computerMove]);
-            playerScore++;
-            break;
-        case -1: // Computer wins
-            printf("%s beats %s. You lost.\n\n",Moves[computerMove],Moves[playerMove]);
-            computerScore++;
-            break;
+        printf("You played %s\n",Moves[playerMove]);
+        printf("Computer played %s\n\n",Moves[computerMove]);
+    
+        // See who wins
+        int compare = compareMove(playerMove, computerMove);
+        switch (compare) {
+            case 0: // Tie
+                printf("Tie!\n\n");
+                break;
+            case 1: // User wins
+                printf("%s beats %s. You won!\n\n",Moves[playerMove],Moves[computerMove]);
+                playerScore++;
+                break;
+            case -1: // Computer wins
+                printf("%s beats %s. You lost.\n\n",Moves[computerMove],Moves[playerMove]);
+                computerScore++;
+                break;
+        }
+        totalGames++;
+        printf("%d Wins  |  %d Ties  |  %d Loses  |  %d Games",playerScore,totalGames-playerScore-computerScore,computerScore,totalGames);
+        
+        keepPlaying = playAgain();
     }
-    totalGames++;
-    printf("%d Wins  |  %d Ties  |  %d Loses  |  %d Games",playerScore,totalGames-playerScore-computerScore,computerScore,totalGames);
-    
-    // Play again or quit
-    if(playAgain())
-        play();
-    else
-        printStats();
+    printStats();
 }
 
 RPS::Player::Player()
 {
-    // empty
+    MoveHistory = (char*)malloc(INIT_HISTORY_MAX_SIZE*sizeof(char));
+    MoveHistory[0] = '\0';
+    HistoryMaxSize = INIT_HISTORY_MAX_SIZE;
 }
 
-/* 
+RPS::Player::~Player()
+{
+    free(MoveHistory);
+}
+
+/**
  * Gets the player's move and update the history
- **/
-RPS::Move RPS::Player::processMove(char (&recent)[5], char* (&history), int &numMoves, size_t &size)
+ */
+RPS::Move RPS::Player::processMove(int &numMoves)
 {
     Move ret = getMove();
-
-    recent[0] = recent[1];
-    recent[1] = recent[2];
-    recent[2] = recent[3];
-    recent[3] = Moves[ret][0];
-    history[numMoves++] = Moves[ret][0];
-    if(numMoves >= size) {
-        size = size*2;
-        history = (char*)realloc(history,size);
+    MoveHistory[numMoves++] = Moves[ret][0];
+    
+    if(numMoves >= HistoryMaxSize) {
+        HistoryMaxSize = HistoryMaxSize*2;
+        MoveHistory = (char*)realloc(MoveHistory,HistoryMaxSize);
     }
-    history[numMoves] = '\0';
-    // TODO: increase history size as necessary
+    MoveHistory[numMoves] = '\0';
     return ret;
 }
 
-/* 
+/**
  * Prompt the player for a move
- **/
+ */
 RPS::Move RPS::Player::getMove() {
     char input[10];
     printf("\nRock, Paper, or Scissors? ");
     std::cin >> input;
+    if(sigflag != 0)
+        return QUIT;
     switch(input[0]){
         case 'R':
         case 'r':
@@ -135,9 +127,16 @@ RPS::Move RPS::Player::getMove() {
         case 'P':
         case 'p':
             return PAPER;
+        case 'Q':
+        case 'q':
+            return QUIT;
         default:
             return getMove();
     }
+}
+
+char* RPS::Player::getHistory() {
+    return MoveHistory;
 }
 
 RPS::Computer::Computer()
@@ -145,26 +144,27 @@ RPS::Computer::Computer()
     // empty
 }
 
-/* 
+/**
  * Gets the computer's move, based on the player's
  * move history
- **/
-RPS::Move RPS::Computer::processMove(const char (&recent)[5], char* history, const int &numMoves)
+ */
+RPS::Move RPS::Computer::processMove(char* history, const int &numMoves)
 {
-    if(numMoves == 0)
+    if(numMoves < 4)
         return decideMove(0,0,0);
     
     int numR  =0;
     int numP  =0;
     int numS  =0;
     char* start= history;
+    char* recent = history+numMoves-4;
     
     // Search history for string of 4 previous moves
     while(*history != '\0') {
         if((*history     == recent[0]) &&
            (*(history+1) == recent[1]) &&
-            (*(history+2) == recent[2]) &&
-            (*(history+3) == recent[3]) ) {
+           (*(history+2) == recent[2]) &&
+           (*(history+3) == recent[3]) ) {
             switch(*(history+4)) {
                 case 'R':
                     numR++;
@@ -258,7 +258,6 @@ RPS::Move RPS::Computer::decideMove(int numR, int numS, int numP){
         else if(numR < numS)
             return ROCK;
         else {
-            srand(time(NULL));
             chance = rand()%100;
             if(chance>50)
                 return PAPER;
@@ -272,7 +271,6 @@ RPS::Move RPS::Computer::decideMove(int numR, int numS, int numP){
         else if(numP < numS)
             return ROCK;
         else {
-            srand(time(NULL));
             chance = rand()%100;
             if(chance>50)
                 return SCISSORS;
@@ -285,7 +283,6 @@ RPS::Move RPS::Computer::decideMove(int numR, int numS, int numP){
             return ROCK;
         }
         else if(numR > numS) {
-            srand(time(NULL));
             chance = rand()%100;
             if(chance>50)
                 return PAPER;
@@ -293,22 +290,21 @@ RPS::Move RPS::Computer::decideMove(int numR, int numS, int numP){
                 return SCISSORS;
         }
         else {
-            srand(time(NULL));
             chance = rand()%100;
             if(chance>66)
                 return ROCK;
             else if(chance > 33)
-                return SCISSORS;
+                return PAPER;
             else
-                return ROCK;
+                return SCISSORS;
         }
     }
 }
 
-/* 
+/**
  * Move comparer:
  * returns 1 for win, 0 for tie, -1 for loss
- **/
+ */
 int RPS::compareMove(Move move1, Move move2)
 {
     if(move1 == move2)
@@ -320,13 +316,15 @@ int RPS::compareMove(Move move1, Move move2)
             return (move2 == ROCK ? 1 : -1);
         case SCISSORS:
             return (move2 == PAPER ? 1 : -1);
+        default:
+            return 0;
     }
     return 0;
 }
 
-/* 
+/**
  * Simple play again prompt
- **/
+ */
 bool RPS::playAgain() {
     /*
     printf("Play again? ");
@@ -339,10 +337,22 @@ bool RPS::playAgain() {
     return true;
 }
 
-/* 
+/**
  * Prints game end statistics
- **/
+ */
 void RPS::printStats(){
-    double winPercent = (double)playerScore/(double)totalGames * 100;
-    printf("\n\n%d Wins  |  %d Ties  |  %d Loses  |  %d Games\nYou had a win percentage of %.2f%% \n\n",playerScore,totalGames-playerScore-computerScore,computerScore,totalGames,winPercent);
+    double winPercent, tiePercent, lossPercent;
+    if(totalGames != 0) {
+        winPercent = (double)playerScore/(double)totalGames * 100;
+        lossPercent = (double)computerScore/(double)totalGames * 100;
+        tiePercent = 100-winPercent-lossPercent;
+    }
+    else
+        winPercent = lossPercent = tiePercent = 0;
+    printf("\n");
+    printf("/*************************************************/\n");
+    printf("/* Win  percentage: %.2f%%                       */\n",winPercent);
+    printf("/* Tie  percentage: %.2f%%                       */\n",tiePercent);
+    printf("/* Loss percentage: %.2f%%                       */\n",lossPercent);
+    printf("/*************************************************/\n");
 }
