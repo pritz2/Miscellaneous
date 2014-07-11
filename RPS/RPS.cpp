@@ -17,7 +17,7 @@ void abort_program(int sig) {
 /**
  * RPS game initializer: all stats originally set to zero
  */
-RPS::RPS() : playerScore(0), computerScore(0), totalGames(0), numMoves(0)
+RPS::RPS() : playerScore(0), computerScore(0), totalGames(0)
 {
     printf("\n");
     printf("/*************************************/\n");
@@ -48,8 +48,8 @@ void RPS::play()
     
     while(keepPlaying) {
         // Get moves
-        Move computerMove = computer.processMove(player.getHistory(),numMoves);
-        Move playerMove = player.processMove(numMoves);
+        Move computerMove = computer.processMove(player.getHistory(),totalGames);
+        Move playerMove = player.processMove(totalGames);
         
         if(playerMove == QUIT)
             break;
@@ -95,16 +95,16 @@ RPS::Player::~Player()
 /**
  * Gets the player's move and update the history
  */
-RPS::Move RPS::Player::processMove(int &numMoves)
+RPS::Move RPS::Player::processMove(const int &numMoves)
 {
     Move ret = getMove();
-    MoveHistory[numMoves++] = Moves[ret][0];
+    MoveHistory[numMoves] = Moves[ret][0];
     
     if(numMoves >= HistoryMaxSize) {
         HistoryMaxSize = HistoryMaxSize*2;
         MoveHistory = (char*)realloc(MoveHistory,HistoryMaxSize);
     }
-    MoveHistory[numMoves] = '\0';
+    MoveHistory[numMoves+1] = '\0';
     return ret;
 }
 

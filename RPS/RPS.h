@@ -70,7 +70,7 @@ private:
          * @param Maximum size of the move history dynamic array
          * @return The move selected by the player
          */
-        Move processMove(int &numMoves);
+        Move processMove(const int &numMoves);
         
         char* getHistory();
         
@@ -84,7 +84,7 @@ private:
         
         char* MoveHistory;     // Player's move history
         size_t HistoryMaxSize; // Maximum size of dynamic move history
-        // until realloc() is needed
+                               // until realloc() is needed
     };
     
     /**
@@ -143,7 +143,6 @@ private:
     int playerScore;       // player score
     int computerScore;     // computer score
     int totalGames;        // total games played
-    int numMoves;          // number of moves played
     
 };
 
